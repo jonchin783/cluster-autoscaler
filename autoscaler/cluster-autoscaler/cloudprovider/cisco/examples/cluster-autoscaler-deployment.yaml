@@ -1,0 +1,68 @@
+---
+  apiVersion: v1
+  data:
+    .dockerconfigjson: eyJhdXRocyI6eyIxMC42OC4yOS40MTo1MDAwIjp7InVzZXJuYW1lIjoiYWRtaW4iLCJwYXNzd29yZCI6ImNpc2NvMTIzIiwiZW1haWwiOiJqb25hY2hpbkBjaXNjby5jb20iLCJhdXRoIjoiWVdSdGFXNDZZMmx6WTI4eE1qTT0ifX19
+  kind: Secret
+  metadata:
+    name: my-secret
+    namespace: kube-system
+  type: kubernetes.io/dockerconfigjson  
+---
+  apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    name: cluster-autoscaler
+    namespace: kube-system
+    labels:
+      app: cluster-autoscaler
+  spec:
+    progressDeadlineSeconds: 600
+    replicas: 1
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app: cluster-autoscaler
+    strategy:
+      rollingUpdate:
+        maxSurge: 25%
+        maxUnavailable: 25%
+      type: RollingUpdate
+    template:
+      metadata:
+        labels:
+          app: cluster-autoscaler
+      spec:
+        containers:
+        - command:
+          - ./cluster-autoscaler
+          - --v=4
+          - --stderrthreshold=info
+          - --cloud-provider=cisco
+          - --cluster-name=<cluster-name>
+          - --ccp-address=<ccp address>
+          - --ccp-username=<ccp username>
+          - --ccp-password=<ccp password>
+          - --skip-nodes-with-local-storage=false
+          - --expander=least-waste
+          - --nodes=1:5:<pool name>
+          image: 10.68.29.41:5000/autoscaling-builder
+          imagePullPolicy: Always
+          name: cluster-autoscaler
+          resources:
+            limits:
+              cpu: 100m
+              memory: 300Mi
+            requests:
+              cpu: 100m
+              memory: 300Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        dnsPolicy: ClusterFirst
+        imagePullSecrets:
+        - name: my-secret
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        serviceAccount: cluster-autoscaler
+        serviceAccountName: cluster-autoscaler
+        terminationGracePeriodSeconds: 30
